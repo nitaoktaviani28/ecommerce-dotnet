@@ -1,4 +1,3 @@
-using OpenTelemetry;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -8,7 +7,7 @@ public static class Tracing
 {
     public static void Setup(WebApplicationBuilder builder)
     {
-        var serviceName = Env.Get("OTEL_SERVICE_NAME", "ecommerce-backend");
+        var serviceName = Env.Get("OTEL_SERVICE_NAME", "ecommerce-net");
         var endpoint = Env.Get(
             "OTEL_EXPORTER_OTLP_ENDPOINT",
             "http://alloy.monitoring.svc.cluster.local:4318"
@@ -23,7 +22,6 @@ public static class Tracing
                     )
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddNpgsql()
                     .AddOtlpExporter(o =>
                     {
                         o.Endpoint = new Uri(endpoint);
