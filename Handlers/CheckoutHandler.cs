@@ -1,7 +1,7 @@
 using Ecommerce.MonitoringApp.Repository;
+using Ecommerce.MonitoringApp.Observability;
 using Microsoft.AspNetCore.Http;
 using OpenTelemetry.Trace;
-using Prometheus;
 
 namespace Ecommerce.MonitoringApp.Handlers;
 
@@ -20,51 +20,27 @@ public static class CheckoutHandler
         }
 
         var form = await context.Request.ReadFormAsync();
-        var productId = int.Parse(form["product_id"]);
-        var quantity = int.Parse(form["quantity"]);
+        int.TryParse(form["product_id"], out var productId);
+        int.TryParse(form["quantity"], out var quantity);
 
-        try
-        {
-            var product = await PostgresRepository.GetProductAsync(
-                productId,
-                context.RequestAborted
-            );
+        var product = await PostgresRepository.GetProductAsync(
+            productId, context.RequestAborted);
 
-            var total = product.Price * quantity;
+        var total = product.Price * quantity;
 
-            var orderId = await PostgresRepository.CreateOrderAsync(
-                productId,
-                quantity,
-                total,
-                context.RequestAborted
-            );
+        var orderId = await PostgresRepository.CreateOrderAsync(
+            productId, quantity, total, context.RequestAborted);
 
-            // metrics (padanan ordersCreatedTotal.Inc())
-            Metrics.OrdersCreatedTotal.Inc();
+        AppMetrics.OrdersCreatedTotal.Inc();
 
-            context.Response.Redirect($"/success?order_id={orderId}", false);
-        }
-        catch
-        {
-            context.Response.StatusCode = 500;
-            await context.Response.WriteAsync("Checkout failed");
-        }
-        finally
-        {
-            RecordHttpMetrics(context, start);
-        }
-    }
-
-    private static void RecordHttpMetrics(HttpContext ctx, DateTime start)
-    {
-        var duration = (DateTime.UtcNow - start).TotalSeconds;
-
-        Metrics.HttpRequestsTotal
-            .WithLabels(ctx.Request.Method, ctx.Request.Path, ctx.Response.StatusCode.ToString())
+        AppMetrics.HttpRequestsTotal
+            .WithLabels("POST", "/checkout", "303")
             .Inc();
 
-        Metrics.HttpRequestDuration
-            .WithLabels(ctx.Request.Method, ctx.Request.Path)
-            .Observe(duration);
+        AppMetrics.HttpRequestDuration
+            .WithLabels("POST", "/checkout")
+            .Observe((DateTime.UtcNow - start).TotalSeconds);
+
+        context.Response.Redirect($"/success?order_id={orderId}", false);
     }
 }
