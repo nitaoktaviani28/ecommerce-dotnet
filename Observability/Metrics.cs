@@ -2,7 +2,7 @@ using Prometheus;
 
 namespace Ecommerce.MonitoringApp.Observability;
 
-public static class Metrics
+public static class AppMetrics
 {
     public static readonly Counter HttpRequestsTotal =
         Prometheus.Metrics.CreateCounter(
@@ -30,7 +30,6 @@ public static class Metrics
 
     public static void Setup(WebApplicationBuilder builder)
     {
-        // expose /metrics
-        builder.Services.AddSingleton<ICollectorRegistry>(Metrics.DefaultRegistry);
+        // prometheus-net auto collect
     }
 }
