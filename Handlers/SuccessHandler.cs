@@ -1,4 +1,5 @@
 using Ecommerce.MonitoringApp.Repository;
+using Ecommerce.MonitoringApp.Observability;
 using Microsoft.AspNetCore.Http;
 using OpenTelemetry.Trace;
 
@@ -12,46 +13,20 @@ public static class SuccessHandler
         var tracer = TracerProvider.Default.GetTracer("handlers");
         using var span = tracer.StartActiveSpan("success_handler");
 
-        if (!int.TryParse(context.Request.Query["order_id"], out var orderId))
-        {
-            context.Response.StatusCode = 400;
-            return;
-        }
+        int.TryParse(context.Request.Query["order_id"], out var orderId);
 
-        try
-        {
-            var order = await PostgresRepository.GetOrderAsync(orderId, context.RequestAborted);
-            var product = await PostgresRepository.GetProductAsync(order.ProductId, context.RequestAborted);
+        var order = await PostgresRepository.GetOrderAsync(orderId, context.RequestAborted);
+        var product = await PostgresRepository.GetProductAsync(order.ProductId, context.RequestAborted);
 
-            context.Response.ContentType = "text/html; charset=utf-8";
-            await context.Response.WriteAsync($"""
-                <html>
-                <body>
-                  <h1>✅ Order Success</h1>
-                  <p>Order ID: {order.Id}</p>
-                  <p>Product: {product.Name}</p>
-                  <p>Quantity: {order.Quantity}</p>
-                  <p>Total: Rp {order.Total}</p>
-                  <a href="/">Back</a>
-                </body>
-                </html>
-            """);
-        }
-        catch
-        {
-            context.Response.StatusCode = 404;
-            await context.Response.WriteAsync("Order not found");
-        }
-        finally
-        {
-            var duration = (DateTime.UtcNow - start).TotalSeconds;
-            Metrics.HttpRequestsTotal
-                .WithLabels(context.Request.Method, context.Request.Path, context.Response.StatusCode.ToString())
-                .Inc();
+        AppMetrics.HttpRequestsTotal
+            .WithLabels("GET", "/success", "200")
+            .Inc();
 
-            Metrics.HttpRequestDuration
-                .WithLabels(context.Request.Method, context.Request.Path)
-                .Observe(duration);
-        }
+        AppMetrics.HttpRequestDuration
+            .WithLabels("GET", "/success")
+            .Observe((DateTime.UtcNow - start).TotalSeconds);
+
+        context.Response.ContentType = "text/html";
+        await context.Response.WriteAsync("<h1>Order Success</h1>");
     }
 }
