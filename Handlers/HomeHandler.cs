@@ -1,3 +1,4 @@
+using Ecommerce.MonitoringApp.Repository.Models;
 using Ecommerce.MonitoringApp.Repository;
 using Microsoft.AspNetCore.Http;
 using OpenTelemetry.Trace;
